@@ -1,0 +1,21 @@
+{
+  "name": "Reels & Shorts Blocker",
+  "description": "Hides Instagram Reels and YouTube Shorts",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "hello.html",
+    "default_icon": "no_entry.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.instagram.com/*", "*://*.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "host_permissions": [
+    "*://*.instagram.com/*",
+    "*://*.youtube.com/*"
+  ]
+}
