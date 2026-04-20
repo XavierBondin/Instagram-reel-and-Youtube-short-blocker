@@ -6,7 +6,8 @@ A simple Chrome extension that helps you stay focused by removing distracting sh
 
 * Instagram (Reels)
 * YouTube (Shorts)
-
+Find it at [
+](https://chromewebstore.google.com/detail/hoeldclgkhhpbkkpgkepajadkfblfpkf?authuser=0&hl=en)
 ---
 
 ## 📦 Installation Guide
