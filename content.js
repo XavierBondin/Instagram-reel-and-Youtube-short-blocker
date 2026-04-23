@@ -9,21 +9,17 @@ function injectStyle(css) {
 // ─── YOUTUBE ────────────────────────────────────────────────────────────────
 
 function handleYouTube() {
-  // Redirect any /shorts/ URL back to home
   function redirectIfShorts() {
     const path = window.location.pathname;
-    if (path.startsWith('/shorts') ) {
+    if (path.startsWith('/shorts')) {
       window.location.replace('https://www.youtube.com/');
     }
   }
 
   redirectIfShorts();
-
-  // YouTube fires this event on every in-app navigation (SPA)
   document.addEventListener('yt-navigate-finish', redirectIfShorts);
   window.addEventListener('popstate', redirectIfShorts);
 
-  // Hide Shorts UI elements with CSS
   injectStyle(`
     ytd-reel-shelf-renderer,
     ytd-reel-item-renderer,
@@ -39,7 +35,6 @@ function handleYouTube() {
     }
   `);
 
-  // MutationObserver catches Shorts cards loaded dynamically after page paint
   function purgeShorts() {
     document.querySelectorAll([
       'ytd-reel-shelf-renderer',
@@ -47,7 +42,6 @@ function handleYouTube() {
       'ytd-shorts',
     ].join(',')).forEach(el => { el.style.display = 'none'; });
 
-    // Hide any video card whose link goes to /shorts/
     document.querySelectorAll('a[href*="/shorts/"]').forEach(link => {
       let el = link;
       for (let i = 0; i < 6; i++) {
@@ -70,18 +64,49 @@ function handleYouTube() {
 // ─── INSTAGRAM ───────────────────────────────────────────────────────────────
 
 function handleInstagram() {
-  // Redirect /reels/ page back to home
+  function showBlockScreen() {
+    document.querySelectorAll('video').forEach(v => {
+      try {
+        v.pause();
+        v.src = '';
+        v.load();
+      } catch (e) {}
+    });
+
+    document.documentElement.innerHTML = `
+      <body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-family:sans-serif;">
+        <div style="text-align:center;">
+          <h1 style="font-size:2rem;margin-bottom:1rem;">Reels blocked</h1>
+          <p style="opacity:0.7;">Go do something else.</p>
+          <a href="https://www.instagram.com/" style="color:#0095f6;display:inline-block;margin-top:2rem;">Back to feed</a>
+        </div>
+      </body>
+    `;
+  }
+
   function redirectIfReels() {
-    const path = window.location.pathname;
-    if (path.startsWith('/reels')) {
-      window.location.replace('https://www.instagram.com/');
+    const path = location.pathname;
+
+    if (path.startsWith('/reels') || path.startsWith('/reel/')) {
+      showBlockScreen();
+      return;
+    }
+
+    if (path.startsWith('/p/')) {
+      const check = () => {
+        if (document.querySelector('article video, main video')) {
+          showBlockScreen();
+        }
+      };
+      check();
+      setTimeout(check, 400);
+      setTimeout(check, 1000);
     }
   }
 
   redirectIfReels();
   window.addEventListener('popstate', redirectIfReels);
 
-  // Intercept pushState/replaceState for SPA navigation
   const _push = history.pushState.bind(history);
   const _replace = history.replaceState.bind(history);
   history.pushState = function (...args) {
@@ -93,7 +118,6 @@ function handleInstagram() {
     redirectIfReels();
   };
 
-  // Hide Reels nav entry
   injectStyle(`
     a[href="/reels/"],
     a[href="/reels"],
@@ -103,43 +127,39 @@ function handleInstagram() {
     }
   `);
 
-// Redirect away from the Reels page entirely
-if (location.pathname.startsWith('/reels')) {
-  location.replace('https://www.instagram.com/');
-}
+  function purgeReels() {
+    if (
+      location.pathname.startsWith('/reels') ||
+      location.pathname.startsWith('/reel/') ||
+      location.pathname.startsWith('/p/')
+    ) {
+      redirectIfReels();
+      return;
+    }
 
-// Hide Reels feed cards, sidebar link, and embedded Reels in DMs
-function purgeReels() {
-  // Re-check in case SPA navigation took us to /reels/ without a reload
-  if (location.pathname.startsWith('/reels')) {
-    location.replace('https://www.instagram.com/');
-    return;
+    document.querySelectorAll('a[href^="/reels/"]').forEach(el => {
+      const container = el.closest('[role="menuitem"]') || el.parentElement;
+      if (container) container.style.display = 'none';
+    });
+
+    document.querySelectorAll('a[href*="/reel/"]:not([href*="/reels/"])').forEach(el => {
+      const post = el.closest('article') || el.parentElement;
+      if (post) post.style.display = 'none';
+    });
   }
 
-  // Hide the Reels sidebar/menu link
-  document.querySelectorAll('a[href^="/reels/"]').forEach(el => {
-    const container = el.closest('[role="menuitem"]') || el.parentElement;
-    if (container) container.style.display = 'none';
-  });
+  purgeReels();
 
-  // Hide individual Reel posts in the main feed
-  document.querySelectorAll('a[href*="/reel/"]').forEach(el => {
-    const post = el.closest('article') || el.parentElement;
-    if (post) post.style.display = 'none';
+  let timer;
+  new MutationObserver(() => {
+    clearTimeout(timer);
+    timer = setTimeout(purgeReels, 200);
+  }).observe(document.body, {
+    childList: true,
+    subtree: true,
   });
 }
 
-purgeReels();
-
-// Debounced observer so we don't run purgeReels hundreds of times per second
-let timer;
-new MutationObserver(() => {
-  clearTimeout(timer);
-  timer = setTimeout(purgeReels, 200);
-}).observe(document.body, {
-  childList: true,
-  subtree: true,
-});
 // ─── DISPATCH ────────────────────────────────────────────────────────────────
 
 if (hostname.includes('youtube.com')) {
