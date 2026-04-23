@@ -103,39 +103,43 @@ function handleInstagram() {
     }
   `);
 
-  // Hide Reels feed cards and embedded Reels in DMs
-  function purgeReels() {
-    // Feed: article elements that contain a reels link
-    document.querySelectorAll('article').forEach(article => {
-      if (article.querySelector('a[href^="/reels/"]')) {
-        article.style.display = 'none';
-      }
-    });
+// Redirect away from the Reels page entirely
+if (location.pathname.startsWith('/reels')) {
+  location.replace('https://www.instagram.com/');
+}
 
-    // DMs / embeds: any standalone reel player container
-    document.querySelectorAll('a[href^="/reels/"]').forEach(link => {
-      // Walk up a few levels to find the message bubble or card wrapper
-      let el = link;
-      for (let i = 0; i < 8; i++) {
-        if (!el.parentElement) break;
-        el = el.parentElement;
-        const role = el.getAttribute('role');
-        // Stop at a list item, article, or message bubble
-        if (role === 'listitem' || el.tagName === 'ARTICLE' || el.tagName === 'LI') {
-          el.style.display = 'none';
-          break;
-        }
-      }
-    });
+// Hide Reels feed cards, sidebar link, and embedded Reels in DMs
+function purgeReels() {
+  // Re-check in case SPA navigation took us to /reels/ without a reload
+  if (location.pathname.startsWith('/reels')) {
+    location.replace('https://www.instagram.com/');
+    return;
   }
 
-  purgeReels();
-  new MutationObserver(purgeReels).observe(document.body, {
-    childList: true,
-    subtree: true,
+  // Hide the Reels sidebar/menu link
+  document.querySelectorAll('a[href^="/reels/"]').forEach(el => {
+    const container = el.closest('[role="menuitem"]') || el.parentElement;
+    if (container) container.style.display = 'none';
+  });
+
+  // Hide individual Reel posts in the main feed
+  document.querySelectorAll('a[href*="/reel/"]').forEach(el => {
+    const post = el.closest('article') || el.parentElement;
+    if (post) post.style.display = 'none';
   });
 }
 
+purgeReels();
+
+// Debounced observer so we don't run purgeReels hundreds of times per second
+let timer;
+new MutationObserver(() => {
+  clearTimeout(timer);
+  timer = setTimeout(purgeReels, 200);
+}).observe(document.body, {
+  childList: true,
+  subtree: true,
+});
 // ─── DISPATCH ────────────────────────────────────────────────────────────────
 
 if (hostname.includes('youtube.com')) {
